@@ -256,6 +256,12 @@ func ResourceCluster() *schema.Resource {
 				ForceNew:     true,
 				ValidateFunc: validation.StringLenBetween(1, 64),
 			},
+			"cluster_type": {
+				Type:         schema.TypeString,
+				Required:     true,
+				ForceNew:     true,
+				ValidateFunc: validation.StringLenBetween(1, 64),
+			},
 			"configuration_info": {
 				Type:             schema.TypeList,
 				Optional:         true,
@@ -479,42 +485,23 @@ func resourceClusterCreate(ctx context.Context, d *schema.ResourceData, meta int
 	tags := defaultTagsConfig.MergeTags(tftags.New(d.Get("tags").(map[string]interface{})))
 
 	name := d.Get("cluster_name").(string)
-	input := &kafka.CreateClusterInput{
-		ClusterName:         aws.String(name),
-		KafkaVersion:        aws.String(d.Get("kafka_version").(string)),
-		NumberOfBrokerNodes: aws.Int64(int64(d.Get("number_of_broker_nodes").(int))),
-		Tags:                Tags(tags.IgnoreAWS()),
+	inputV2 := &kafka.CreateClusterV2Input{
+		ClusterName: aws.String(name),
+		Tags:        Tags(tags.IgnoreAWS()),
 	}
 
-	if v, ok := d.GetOk("broker_node_group_info"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
-		input.BrokerNodeGroupInfo = expandBrokerNodeGroupInfo(v.([]interface{})[0].(map[string]interface{}))
+	clusterType := d.Get("cluster_type").(string)
+	if clusterType == "serverless" {
+		if v, ok := d.GetOk("serverless_request"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
+			inputV2.Serverless = expandServerlessRequest(v.([]interface{})[0].(map[string]interface{}))
+		}
+	} else if clusterType == "provisioned" {
+		if v, ok := d.GetOk("provisioned_request"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
+			inputV2.Provisioned = expandProvisionedRequest(v.([]interface{})[0].(map[string]interface{}))
+		}
 	}
 
-	if v, ok := d.GetOk("client_authentication"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
-		input.ClientAuthentication = expandClientAuthentication(v.([]interface{})[0].(map[string]interface{}))
-	}
-
-	if v, ok := d.GetOk("configuration_info"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
-		input.ConfigurationInfo = expandConfigurationInfo(v.([]interface{})[0].(map[string]interface{}))
-	}
-
-	if v, ok := d.GetOk("encryption_info"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
-		input.EncryptionInfo = expandEncryptionInfo(v.([]interface{})[0].(map[string]interface{}))
-	}
-
-	if v, ok := d.GetOk("enhanced_monitoring"); ok {
-		input.EnhancedMonitoring = aws.String(v.(string))
-	}
-
-	if v, ok := d.GetOk("logging_info"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
-		input.LoggingInfo = expandLoggingInfo(v.([]interface{})[0].(map[string]interface{}))
-	}
-
-	if v, ok := d.GetOk("open_monitoring"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
-		input.OpenMonitoring = expandOpenMonitoringInfo(v.([]interface{})[0].(map[string]interface{}))
-	}
-
-	output, err := conn.CreateClusterWithContext(ctx, input)
+	output, err := conn.CreateClusterV2WithContext(ctx, inputV2)
 
 	if err != nil {
 		return diag.Errorf("creating MSK Cluster (%s): %s", name, err)
@@ -956,6 +943,120 @@ func resourceClusterDelete(ctx context.Context, d *schema.ResourceData, meta int
 	}
 
 	return nil
+}
+
+func expandServerlessRequest(tfMap map[string]interface{}) *kafka.ServerlessRequest {
+	if tfMap == nil {
+		return nil
+	}
+
+	apiObject := &kafka.ServerlessRequest{}
+
+	if v, ok := tfMap["client_authentication"].([]interface{}); ok && len(v) > 0 && v[0] != nil {
+		// clientAuthentication := &kafka.ServerlessClientAuthentication{
+		// 	Sasl: &kafka.ServerlessSasl{
+		// 		Iam: &kafka.Iam{
+		// 			Enabled: aws.Bool(true),
+		// 		},
+		// 	},
+		// }
+		// apiObject.ClientAuthentication = clientAuthentication
+
+		apiObject.ClientAuthentication = expandServerlessClientAuthentication(v[0].(map[string]interface{}))
+	}
+
+	if v, ok := tfMap["vpc_config"].(*schema.Set); ok && v.Len() > 0 {
+		apiObject.VpcConfig = flex.ExpandStringSet(v)
+		//apiObject.VpcConfig = expandVpcConfig(v[0].(map[string]interface{}))
+	}
+
+	return apiObject
+}
+
+func expandProvisionedRequest(tfMap map[string]interface{}) *kafka.ProvisionedRequest {
+	if tfMap == nil {
+		return nil
+	}
+
+	apiObject := &kafka.ProvisionedRequest{}
+
+	if v, ok := tfMap["broker_node_group_info"].(string); ok && v != "" {
+		apiObject.BrokerNodeGroupInfo = expandBrokerNodeGroupInfo(v[0].(map[string]interface{}))
+	}
+
+	if v, ok := tfMap["client_authentication"].(*schema.Set); ok && v.Len() > 0 {
+		apiObject.ClientAuthentication = expandClientAuthentication(v[0].(map[string]interface{}))
+	}
+
+	if v, ok := tfMap["configuration_info"].([]interface{}); ok && len(v) > 0 && v[0] != nil {
+		apiObject.ConfigurationInfo = expandConfigurationInfo(v[0].(map[string]interface{}))
+	}
+
+	if v, ok := tfMap["encryption_info"].(string); ok && v != "" {
+		apiObject.EncryptionInfo = expandEncryptionInfo(v[0].(map[string]interface{}))
+	}
+
+	if v, ok := tfMap["enhanced_monitoring"].(*schema.Set); ok && v.Len() > 0 {
+		apiObject.EnhancedMonitoring = aws.String(v.(string))
+	}
+
+	if v, ok := tfMap["logging_info"].(*schema.Set); ok && v.Len() > 0 {
+		apiObject.LoggingInfo = expandLoggingInfo(v[0].(map[string]interface{}))
+	}
+
+	if v, ok := tfMap["open_monitoring"].(*schema.Set); ok && v.Len() > 0 {
+		apiObject.OpenMonitoring = expandOpenMonitoringInfo(v[0].(map[string]interface{}))
+	}
+
+	return apiObject
+}
+
+func expandVpcConfig(tfMap map[string]interface{}) *kafka.VpcConfig {
+	if tfMap == nil {
+		return nil
+	}
+
+	apiObject := &kafka.VpcConfig{}
+
+	if v, ok := tfMap["security_group_ids"].(*schema.Set); ok && v.Len() > 0 {
+		apiObject.SecurityGroupIds = flex.ExpandStringSet(v)
+	}
+
+	if v, ok := tfMap["subnet_ids"].(*schema.Set); ok && v.Len() > 0 {
+		apiObject.SubnetIds = flex.ExpandStringSet(v)
+	}
+
+	return apiObject
+}
+
+func expandServerlessClientAuthentication(tfMap map[string]interface{}) *kafka.ServerlessClientAuthentication {
+	if tfMap == nil {
+		return nil
+	}
+
+	apiObject := &kafka.ServerlessClientAuthentication{}
+
+	if v, ok := tfMap["serverless_sasl"].([]interface{}); ok && len(v) > 0 && v[0] != nil {
+		apiObject.Sasl = expandServerlessSASL(v[0].(map[string]interface{}))
+	}
+
+	return apiObject
+}
+
+func expandServerlessSaslSASL(tfMap map[string]interface{}) *kafka.ServerlessSasl {
+	if tfMap == nil {
+		return nil
+	}
+
+	apiObject := &kafka.ServerlessSasl{}
+
+	if v, ok := tfMap["iam"].(bool); ok {
+		apiObject.Iam = &kafka.Iam{
+			Enabled: aws.Bool(v),
+		}
+	}
+
+	return apiObject
 }
 
 func expandBrokerNodeGroupInfo(tfMap map[string]interface{}) *kafka.BrokerNodeGroupInfo {
