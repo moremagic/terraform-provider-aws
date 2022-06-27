@@ -953,21 +953,11 @@ func expandServerlessRequest(tfMap map[string]interface{}) *kafka.ServerlessRequ
 	apiObject := &kafka.ServerlessRequest{}
 
 	if v, ok := tfMap["client_authentication"].([]interface{}); ok && len(v) > 0 && v[0] != nil {
-		// clientAuthentication := &kafka.ServerlessClientAuthentication{
-		// 	Sasl: &kafka.ServerlessSasl{
-		// 		Iam: &kafka.Iam{
-		// 			Enabled: aws.Bool(true),
-		// 		},
-		// 	},
-		// }
-		// apiObject.ClientAuthentication = clientAuthentication
-
 		apiObject.ClientAuthentication = expandServerlessClientAuthentication(v[0].(map[string]interface{}))
 	}
 
-	if v, ok := tfMap["vpc_config"].(*schema.Set); ok && v.Len() > 0 {
-		apiObject.VpcConfig = flex.ExpandStringSet(v)
-		//apiObject.VpcConfig = expandVpcConfig(v[0].(map[string]interface{}))
+	if v, ok := tfMap["vpc_config"].([]interface{}); ok && len(v) > 0 && v[0] != nil {
+		apiObject.VpcConfigs = expandVpcConfigs(v)
 	}
 
 	return apiObject
@@ -980,11 +970,11 @@ func expandProvisionedRequest(tfMap map[string]interface{}) *kafka.ProvisionedRe
 
 	apiObject := &kafka.ProvisionedRequest{}
 
-	if v, ok := tfMap["broker_node_group_info"].(string); ok && v != "" {
+	if v, ok := tfMap["broker_node_group_info"].([]interface{}); ok && len(v) > 0 && v[0] != nil {
 		apiObject.BrokerNodeGroupInfo = expandBrokerNodeGroupInfo(v[0].(map[string]interface{}))
 	}
 
-	if v, ok := tfMap["client_authentication"].(*schema.Set); ok && v.Len() > 0 {
+	if v, ok := tfMap["client_authentication"].([]interface{}); ok && len(v) > 0 && v[0] != nil {
 		apiObject.ClientAuthentication = expandClientAuthentication(v[0].(map[string]interface{}))
 	}
 
@@ -992,41 +982,54 @@ func expandProvisionedRequest(tfMap map[string]interface{}) *kafka.ProvisionedRe
 		apiObject.ConfigurationInfo = expandConfigurationInfo(v[0].(map[string]interface{}))
 	}
 
-	if v, ok := tfMap["encryption_info"].(string); ok && v != "" {
+	if v, ok := tfMap["encryption_info"].([]interface{}); ok && len(v) > 0 && v[0] != nil {
 		apiObject.EncryptionInfo = expandEncryptionInfo(v[0].(map[string]interface{}))
 	}
 
-	if v, ok := tfMap["enhanced_monitoring"].(*schema.Set); ok && v.Len() > 0 {
+	if v, ok := tfMap["enhanced_monitoring"].(map[string]interface{}); ok && len(v) > 0 {
 		apiObject.EnhancedMonitoring = aws.String(v.(string))
 	}
 
-	if v, ok := tfMap["logging_info"].(*schema.Set); ok && v.Len() > 0 {
+	if v, ok := tfMap["logging_info"].([]interface{}); ok && len(v) > 0 && v[0] != nil {
 		apiObject.LoggingInfo = expandLoggingInfo(v[0].(map[string]interface{}))
 	}
 
-	if v, ok := tfMap["open_monitoring"].(*schema.Set); ok && v.Len() > 0 {
+	if v, ok := tfMap["open_monitoring"].([]interface{}); ok && len(v) > 0 && v[0] != nil {
 		apiObject.OpenMonitoring = expandOpenMonitoringInfo(v[0].(map[string]interface{}))
 	}
 
 	return apiObject
 }
 
-func expandVpcConfig(tfMap map[string]interface{}) *kafka.VpcConfig {
-	if tfMap == nil {
+func expandVpcConfigs(l []interface{}) []*kafka.VpcConfig {
+	if len(l) == 0 || l[0] == nil {
+		return nil
+	}
+	tfMap, ok := l[0].(map[string]interface{})
+	if !ok {
 		return nil
 	}
 
-	apiObject := &kafka.VpcConfig{}
+	vpcConfigs := make([]*kafka.VpcConfig, 0)
+	if tfSet, ok := tfMap["vpc_configs"].(*schema.Set); ok && tfSet.Len() > 0 {
+		tfList := tfSet.List()
+		for _, tfMapRaw := range tfList {
+			tfMap, ok := tfMapRaw.(map[string]interface{})
+			if !ok {
+				continue
+			}
 
-	if v, ok := tfMap["security_group_ids"].(*schema.Set); ok && v.Len() > 0 {
-		apiObject.SecurityGroupIds = flex.ExpandStringSet(v)
+			config := &kafka.VpcConfig{}
+			if v, ok := tfMap["security_group_ids"].(*schema.Set); ok && v.Len() > 0 {
+				config.SecurityGroupIds = flex.ExpandStringSet(v)
+			}
+			if v, ok := tfMap["subnet_ids"].(*schema.Set); ok && v.Len() > 0 {
+				config.SubnetIds = flex.ExpandStringSet(v)
+			}
+			vpcConfigs = append(vpcConfigs, config)
+		}
 	}
-
-	if v, ok := tfMap["subnet_ids"].(*schema.Set); ok && v.Len() > 0 {
-		apiObject.SubnetIds = flex.ExpandStringSet(v)
-	}
-
-	return apiObject
+	return vpcConfigs
 }
 
 func expandServerlessClientAuthentication(tfMap map[string]interface{}) *kafka.ServerlessClientAuthentication {
@@ -1043,7 +1046,7 @@ func expandServerlessClientAuthentication(tfMap map[string]interface{}) *kafka.S
 	return apiObject
 }
 
-func expandServerlessSaslSASL(tfMap map[string]interface{}) *kafka.ServerlessSasl {
+func expandServerlessSASL(tfMap map[string]interface{}) *kafka.ServerlessSasl {
 	if tfMap == nil {
 		return nil
 	}
