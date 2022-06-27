@@ -986,8 +986,8 @@ func expandProvisionedRequest(tfMap map[string]interface{}) *kafka.ProvisionedRe
 		apiObject.EncryptionInfo = expandEncryptionInfo(v[0].(map[string]interface{}))
 	}
 
-	if v, ok := tfMap["enhanced_monitoring"].(map[string]interface{}); ok && len(v) > 0 {
-		apiObject.EnhancedMonitoring = aws.String(v.(string))
+	if v, ok := tfMap["enhanced_monitoring"].(string); ok && v != "" {
+		apiObject.EnhancedMonitoring = aws.String(v)
 	}
 
 	if v, ok := tfMap["logging_info"].([]interface{}); ok && len(v) > 0 && v[0] != nil {
