@@ -45,7 +45,7 @@ var (
 	clusterZookeeperConnectStringRegexp = regexp.MustCompile(fmt.Sprintf(clusterBrokerRegexpFormat, clusterPortZookeeper))
 )
 
-func TestAccKafkaCluster_provisionedBasic(t *testing.T) {
+func TestAccKafkaCluster_ProvisionedBasic(t *testing.T) {
 	var cluster kafka.ClusterInfo
 	rName := sdkacctest.RandomWithPrefix(acctest.ResourcePrefix)
 	resourceName := "aws_msk_cluster.test"
@@ -110,7 +110,7 @@ func TestAccKafkaCluster_provisionedBasic(t *testing.T) {
 	})
 }
 
-func TestAccKafkaCluster_severlessBasic(t *testing.T) {
+func TestAccKafkaCluster_SeverlessBasic(t *testing.T) {
 	var cluster kafka.ClusterInfo
 	rName := sdkacctest.RandomWithPrefix(acctest.ResourcePrefix)
 	resourceName := "aws_msk_cluster.test"
