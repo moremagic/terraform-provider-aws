@@ -1499,7 +1499,6 @@ resource "aws_msk_cluster" "test" {
 `, rName))
 }
 
-
 func testAccClusterConfig_deprecatedBrokerNodeGroupInfoEBSVolumeSize(rName string, ebsVolumeSize int) string {
 	return acctest.ConfigCompose(testAccClusterBaseConfig(rName), fmt.Sprintf(`
 resource "aws_msk_cluster" "test" {
