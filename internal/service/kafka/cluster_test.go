@@ -68,30 +68,30 @@ func TestAccKafkaCluster_ProvisionedBasic(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "bootstrap_brokers_sasl_scram", ""),
 					resource.TestMatchResourceAttr(resourceName, "bootstrap_brokers_tls", clusterBoostrapBrokersTLSRegexp),
 					testAccCheckResourceAttrIsSortedCSV(resourceName, "bootstrap_brokers_tls"),
-					resource.TestCheckResourceAttr(resourceName, "provisioned_request.broker_node_group_info.#", "1"),
-					resource.TestCheckResourceAttr(resourceName, "provisioned_request.broker_node_group_info.0.az_distribution", kafka.BrokerAZDistributionDefault),
-					resource.TestCheckResourceAttr(resourceName, "provisioned_request.broker_node_group_info.0.ebs_volume_size", "10"),
-					resource.TestCheckResourceAttr(resourceName, "provisioned_request.broker_node_group_info.0.client_subnets.#", "3"),
-					resource.TestCheckTypeSetElemAttrPair(resourceName, "provisioned_request.broker_node_group_info.0.client_subnets.*", "aws_subnet.example_subnet_az1", "id"),
-					resource.TestCheckTypeSetElemAttrPair(resourceName, "provisioned_request.broker_node_group_info.0.client_subnets.*", "aws_subnet.example_subnet_az2", "id"),
-					resource.TestCheckTypeSetElemAttrPair(resourceName, "provisioned_request.broker_node_group_info.0.client_subnets.*", "aws_subnet.example_subnet_az3", "id"),
-					resource.TestCheckResourceAttr(resourceName, "provisioned_request.broker_node_group_info.0.connectivity_info.#", "1"),
-					resource.TestCheckResourceAttr(resourceName, "provisioned_request.broker_node_group_info.0.connectivity_info.0.public_access.#", "1"),
-					resource.TestCheckResourceAttr(resourceName, "provisioned_request.broker_node_group_info.0.connectivity_info.0.public_access.0.type", "DISABLED"),
-					resource.TestCheckResourceAttr(resourceName, "provisioned_request.broker_node_group_info.0.instance_type", "kafka.m5.large"),
-					resource.TestCheckResourceAttr(resourceName, "provisioned_request.broker_node_group_info.0.security_groups.#", "1"),
-					resource.TestCheckTypeSetElemAttrPair(resourceName, "broker_node_group_info.0.security_groups.*", "aws_security_group.example_sg", "id"),
-					resource.TestCheckResourceAttr(resourceName, "client_authentication.#", "0"),
+					resource.TestCheckResourceAttr(resourceName, "provisioned.0.broker_node_group_info.#", "1"),
+					resource.TestCheckResourceAttr(resourceName, "provisioned.0.broker_node_group_info.0.az_distribution", kafka.BrokerAZDistributionDefault),
+					resource.TestCheckResourceAttr(resourceName, "provisioned.0.broker_node_group_info.0.ebs_volume_size", "10"),
+					resource.TestCheckResourceAttr(resourceName, "provisioned.0.broker_node_group_info.0.client_subnets.#", "3"),
+					resource.TestCheckTypeSetElemAttrPair(resourceName, "provisioned.0.broker_node_group_info.0.client_subnets.*", "aws_subnet.example_subnet_az1", "id"),
+					resource.TestCheckTypeSetElemAttrPair(resourceName, "provisioned.0.broker_node_group_info.0.client_subnets.*", "aws_subnet.example_subnet_az2", "id"),
+					resource.TestCheckTypeSetElemAttrPair(resourceName, "provisioned.0.broker_node_group_info.0.client_subnets.*", "aws_subnet.example_subnet_az3", "id"),
+					resource.TestCheckResourceAttr(resourceName, "provisioned.0.broker_node_group_info.0.connectivity_info.#", "1"),
+					resource.TestCheckResourceAttr(resourceName, "provisioned.0.broker_node_group_info.0.connectivity_info.0.public_access.#", "1"),
+					resource.TestCheckResourceAttr(resourceName, "provisioned.0.broker_node_group_info.0.connectivity_info.0.public_access.0.type", "DISABLED"),
+					resource.TestCheckResourceAttr(resourceName, "provisioned.0.broker_node_group_info.0.instance_type", "kafka.m5.large"),
+					resource.TestCheckResourceAttr(resourceName, "provisioned.0.broker_node_group_info.0.security_groups.#", "1"),
+					resource.TestCheckTypeSetElemAttrPair(resourceName, "provisioned.0.broker_node_group_info.0.security_groups.*", "aws_security_group.example_sg", "id"),
+					resource.TestCheckResourceAttr(resourceName, "provisioned.0.client_authentication.#", "0"),
 					resource.TestCheckResourceAttr(resourceName, "cluster_name", rName),
-					resource.TestCheckResourceAttr(resourceName, "configuration_info.#", "1"),
-					resource.TestCheckResourceAttr(resourceName, "encryption_info.#", "1"),
-					acctest.MatchResourceAttrRegionalARN(resourceName, "encryption_info.0.encryption_at_rest_kms_key_arn", "kms", regexp.MustCompile(`key/.+`)),
-					resource.TestCheckResourceAttr(resourceName, "encryption_info.0.encryption_in_transit.#", "1"),
-					resource.TestCheckResourceAttr(resourceName, "encryption_info.0.encryption_in_transit.0.client_broker", "TLS"),
-					resource.TestCheckResourceAttr(resourceName, "encryption_info.0.encryption_in_transit.0.in_cluster", "true"),
-					resource.TestCheckResourceAttr(resourceName, "provisioned_request.enhanced_monitoring", kafka.EnhancedMonitoringDefault),
-					resource.TestCheckResourceAttr(resourceName, "kafka_version", "2.7.1"),
-					resource.TestCheckResourceAttr(resourceName, "number_of_broker_nodes", "3"),
+					resource.TestCheckResourceAttr(resourceName, "provisioned.0.configuration_info.#", "1"),
+					resource.TestCheckResourceAttr(resourceName, "provisioned.0.encryption_info.#", "1"),
+					acctest.MatchResourceAttrRegionalARN(resourceName, "provisioned.0.encryption_info.0.encryption_at_rest_kms_key_arn", "kms", regexp.MustCompile(`key/.+`)),
+					resource.TestCheckResourceAttr(resourceName, "provisioned.0.encryption_info.0.encryption_in_transit.#", "1"),
+					resource.TestCheckResourceAttr(resourceName, "provisioned.0.encryption_info.0.encryption_in_transit.0.client_broker", "TLS"),
+					resource.TestCheckResourceAttr(resourceName, "provisioned.0.encryption_info.0.encryption_in_transit.0.in_cluster", "true"),
+					resource.TestCheckResourceAttr(resourceName, "provisioned.0.enhanced_monitoring", kafka.EnhancedMonitoringDefault),
+					resource.TestCheckResourceAttr(resourceName, "provisioned.0.kafka_version", "2.7.1"),
+					resource.TestCheckResourceAttr(resourceName, "provisioned.0.number_of_broker_nodes", "3"),
 					resource.TestCheckResourceAttr(resourceName, "tags.%", "0"),
 					resource.TestMatchResourceAttr(resourceName, "zookeeper_connect_string", clusterZookeeperConnectStringRegexp),
 					testAccCheckResourceAttrIsSortedCSV(resourceName, "zookeeper_connect_string"),
@@ -1470,16 +1470,16 @@ func testAccClusterConfig_provisionedBasic(rName string) string {
 resource "aws_msk_cluster" "test" {
   cluster_name           = %[1]q
   cluster_type           = "provisioned"
-  kafka_version          = "2.7.1"
 
-  provisioned_request {
+  provisioned {
+	kafka_version    = "2.7.1"
+	number_of_broker_nodes = 3
 	broker_node_group_info {
 		client_subnets  = [aws_subnet.example_subnet_az1.id, aws_subnet.example_subnet_az2.id, aws_subnet.example_subnet_az3.id]
 		ebs_volume_size = 10
 		instance_type   = "kafka.m5.large"
 		security_groups = [aws_security_group.example_sg.id]
 	}
-	number_of_broker_nodes = 3
   }
 }
 `, rName))
@@ -1489,10 +1489,10 @@ func testAccClusterConfig_serverlessBasic(rName string) string {
 	return acctest.ConfigCompose(testAccClusterBaseConfig(rName), fmt.Sprintf(`
 resource "aws_msk_cluster" "test" {
   cluster_name           = %[1]q
-  cluster_type           = "provisioned"
+  cluster_type           = "serverless"
   kafka_version          = "2.7.1"
 
-  serverless_request {
+  serverless {
 
   }
 }
