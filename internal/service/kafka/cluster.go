@@ -573,10 +573,12 @@ func resourceClusterRead(ctx context.Context, d *schema.ResourceData, meta inter
 
 	//TODO: provisioned の確認方法どうしよう（というか常に作っていいかも
 	if cluster.BrokerNodeGroupInfo != nil {
+		d.Set("cluster_type", aws.String("provisioned"))
 		if err := d.Set("provisioned", []interface{}{flattenProvisionedRequest(cluster)}); err != nil {
 			return diag.Errorf("setting provisioned: %s", err)
 		}
 	} else {
+		d.Set("cluster_type", aws.String("serverless"))
 		d.Set("provisioned", nil)
 	}
 	fmt.Printf("%v\n", "🍣　ResourceClusterRead 🍣🍣🍣　")
