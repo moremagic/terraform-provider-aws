@@ -589,7 +589,7 @@ func resourceClusterCreate(ctx context.Context, d *schema.ResourceData, meta int
 }
 
 func resourceClusterRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	fmt.Printf("%v\n", "🍣　ResourceClusterRead call")
+	fmt.Printf("%v\n", "🍵　ResourceClusterRead call")
 	conn := meta.(*conns.AWSClient).KafkaConn
 	defaultTagsConfig := meta.(*conns.AWSClient).DefaultTagsConfig
 	ignoreTagsConfig := meta.(*conns.AWSClient).IgnoreTagsConfig
@@ -614,7 +614,7 @@ func resourceClusterRead(ctx context.Context, d *schema.ResourceData, meta inter
 		return diag.Errorf("reading MSK Cluster (%s) bootstrap brokers: %s", d.Id(), err)
 	}
 
-	fmt.Printf("%v\n", "🍣　ResourceClusterRead 🍣　")
+	fmt.Printf("%v\n", "🍵　ResourceClusterRead 🍵　")
 
 	d.Set("arn", cluster.ClusterArn)
 	d.Set("bootstrap_brokers", SortEndpointsString(aws.StringValue(output.BootstrapBrokerString)))
@@ -628,21 +628,21 @@ func resourceClusterRead(ctx context.Context, d *schema.ResourceData, meta inter
 	d.Set("cluster_name", cluster.ClusterName)
 	d.Set("current_version", cluster.CurrentVersion)
 
-	fmt.Printf("%v\n", "🍣　ResourceClusterRead 🍣🍣　")
+	fmt.Printf("%v\n", "🍵　ResourceClusterRead 🍵🍵　")
 
-	//TODO: provisioned の確認方法どうしよう（というか常に作っていいかも
 	if cluster.Provisioned != nil {
 		d.Set("cluster_type", aws.String("provisioned"))
-		if err := d.Set("provisioned", []interface{}{flattenProvisionedRequest(cluster.Provisioned)}); err != nil {
+		if err := d.Set("provisioned", []interface{}{flattenProvisioned(cluster.Provisioned)}); err != nil {
 			return diag.Errorf("setting provisioned: %s", err)
 		}
-	} else {
-		d.Set("cluster_type", aws.String("serverless"))
-
-		//TODO: ここでデータ詰める
-		d.Set("serverless", nil)
 	}
-	fmt.Printf("%v\n", "🍣　ResourceClusterRead 🍣🍣🍣　")
+	if cluster.Serverless != nil {
+		d.Set("cluster_type", aws.String("serverless"))
+		if err := d.Set("serverless", []interface{}{flattenServerless(cluster.Serverless)}); err != nil {
+			return diag.Errorf("setting serverless: %s", err)
+		}
+	}
+	fmt.Printf("%v\n", "🍵　ResourceClusterRead 🍵🍵🍵　")
 
 	tags := KeyValueTags(cluster.Tags).IgnoreAWS().IgnoreConfig(ignoreTagsConfig)
 
@@ -654,7 +654,7 @@ func resourceClusterRead(ctx context.Context, d *schema.ResourceData, meta inter
 	if err := d.Set("tags_all", tags.Map()); err != nil {
 		return diag.Errorf("setting tags_all: %s", err)
 	}
-	fmt.Printf("%v\n", "🍣　ResourceClusterRead 🍣🍣🍣🍣　")
+	fmt.Printf("%v\n", "🍵　ResourceClusterRead 🍵🍵🍵🍵　")
 
 	return nil
 }
@@ -1482,7 +1482,24 @@ func expandNodeExporterInfo(tfMap map[string]interface{}) *kafka.NodeExporterInf
 	return apiObject
 }
 
-func flattenProvisionedRequest(apiObject *kafka.Provisioned) map[string]interface{} {
+func flattenServerless(apiObject *kafka.Serverless) map[string]interface{} {
+	if apiObject == nil {
+		return nil
+	}
+
+	tfMap := map[string]interface{}{}
+	if v := apiObject.ClientAuthentication; v != nil {
+		tfMap["client_authentication"] = []interface{}{flattenServerlessClientAuthentication(apiObject.ClientAuthentication)}
+	}
+
+	if v := apiObject.VpcConfigs; v != nil {
+		tfMap["vpc_configs"] = flattenVpcConfigs(apiObject.VpcConfigs[0])
+	}
+
+	return tfMap
+}
+
+func flattenProvisioned(apiObject *kafka.Provisioned) map[string]interface{} {
 	if apiObject == nil {
 		return nil
 	}
@@ -1655,6 +1672,36 @@ func flattenPublicAccess(apiObject *kafka.PublicAccess) map[string]interface{} {
 	return tfMap
 }
 
+func flattenVpcConfigs(apiObject *kafka.VpcConfig) []interface{} {
+	if apiObject == nil {
+		return nil
+	}
+
+	tfMap := map[string]interface{}{}
+
+	if v := apiObject.SecurityGroupIds; v != nil {
+		tfMap["security_group_ids"] = aws.StringValueSlice(v)
+	}
+	if v := apiObject.SubnetIds; v != nil {
+		tfMap["subnet_ids"] = aws.StringValueSlice(v)
+	}
+
+	return []interface{}{tfMap}
+}
+
+func flattenServerlessClientAuthentication(apiObject *kafka.ServerlessClientAuthentication) map[string]interface{} {
+	if apiObject == nil {
+		return nil
+	}
+
+	tfMap := map[string]interface{}{}
+
+	if v := apiObject.Sasl; v != nil {
+		tfMap["sasl"] = []interface{}{flattenServerlessSASL(v)}
+	}
+	return tfMap
+}
+
 func flattenClientAuthentication(apiObject *kafka.ClientAuthentication) map[string]interface{} {
 	if apiObject == nil {
 		return nil
@@ -1673,6 +1720,22 @@ func flattenClientAuthentication(apiObject *kafka.ClientAuthentication) map[stri
 	if v := apiObject.Unauthenticated; v != nil {
 		if v := v.Enabled; v != nil {
 			tfMap["unauthenticated"] = aws.BoolValue(v)
+		}
+	}
+
+	return tfMap
+}
+
+func flattenServerlessSASL(apiObject *kafka.ServerlessSasl) map[string]interface{} {
+	if apiObject == nil {
+		return nil
+	}
+
+	tfMap := map[string]interface{}{}
+
+	if v := apiObject.Iam; v != nil {
+		if v := v.Enabled; v != nil {
+			tfMap["iam"] = aws.BoolValue(v)
 		}
 	}
 

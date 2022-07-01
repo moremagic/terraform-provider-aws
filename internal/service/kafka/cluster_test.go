@@ -68,6 +68,8 @@ func TestAccKafkaCluster_ProvisionedBasic(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "bootstrap_brokers_sasl_scram", ""),
 					resource.TestMatchResourceAttr(resourceName, "bootstrap_brokers_tls", clusterBoostrapBrokersTLSRegexp),
 					testAccCheckResourceAttrIsSortedCSV(resourceName, "bootstrap_brokers_tls"),
+					resource.TestCheckResourceAttr(resourceName, "cluster_name", rName),
+					resource.TestCheckResourceAttr(resourceName, "cluster_type", "provisioned"),
 					resource.TestCheckResourceAttr(resourceName, "provisioned.0.broker_node_group_info.#", "1"),
 					resource.TestCheckResourceAttr(resourceName, "provisioned.0.broker_node_group_info.0.az_distribution", kafka.BrokerAZDistributionDefault),
 					resource.TestCheckResourceAttr(resourceName, "provisioned.0.broker_node_group_info.0.ebs_volume_size", "10"),
@@ -82,7 +84,6 @@ func TestAccKafkaCluster_ProvisionedBasic(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "provisioned.0.broker_node_group_info.0.security_groups.#", "1"),
 					resource.TestCheckTypeSetElemAttrPair(resourceName, "provisioned.0.broker_node_group_info.0.security_groups.*", "aws_security_group.example_sg", "id"),
 					resource.TestCheckResourceAttr(resourceName, "provisioned.0.client_authentication.#", "0"),
-					resource.TestCheckResourceAttr(resourceName, "cluster_name", rName),
 					resource.TestCheckResourceAttr(resourceName, "provisioned.0.configuration_info.#", "1"),
 					resource.TestCheckResourceAttr(resourceName, "provisioned.0.encryption_info.#", "1"),
 					acctest.MatchResourceAttrRegionalARN(resourceName, "provisioned.0.encryption_info.0.encryption_at_rest_kms_key_arn", "kms", regexp.MustCompile(`key/.+`)),
@@ -92,10 +93,10 @@ func TestAccKafkaCluster_ProvisionedBasic(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "provisioned.0.enhanced_monitoring", kafka.EnhancedMonitoringDefault),
 					resource.TestCheckResourceAttr(resourceName, "provisioned.0.kafka_version", "2.7.1"),
 					resource.TestCheckResourceAttr(resourceName, "provisioned.0.number_of_broker_nodes", "3"),
-					resource.TestCheckResourceAttr(resourceName, "tags.%", "0"),
 					resource.TestMatchResourceAttr(resourceName, "provisioned.0.zookeeper_connect_string", clusterZookeeperConnectStringRegexp),
 					testAccCheckResourceAttrIsSortedCSV(resourceName, "provisioned.0.zookeeper_connect_string"),
 					testAccCheckResourceAttrIsSortedCSV(resourceName, "provisioned.0.zookeeper_connect_string_tls"),
+					resource.TestCheckResourceAttr(resourceName, "tags.%", "0"),
 				),
 			},
 			{
@@ -110,7 +111,7 @@ func TestAccKafkaCluster_ProvisionedBasic(t *testing.T) {
 	})
 }
 
-func TestAccKafkaCluster_SeverlessBasic(t *testing.T) {
+func TestAccKafkaCluster_ServerlessBasic(t *testing.T) {
 	var cluster kafka.ClusterInfo
 	rName := sdkacctest.RandomWithPrefix(acctest.ResourcePrefix)
 	resourceName := "aws_msk_cluster.test"
@@ -131,23 +132,16 @@ func TestAccKafkaCluster_SeverlessBasic(t *testing.T) {
 					resource.TestCheckResourceAttr(resourceName, "bootstrap_brokers_public_sasl_scram", ""),
 					resource.TestCheckResourceAttr(resourceName, "bootstrap_brokers_public_tls", ""),
 					resource.TestCheckResourceAttr(resourceName, "bootstrap_brokers_sasl_scram", ""),
-					resource.TestMatchResourceAttr(resourceName, "bootstrap_brokers_tls", clusterBoostrapBrokersTLSRegexp),
-					testAccCheckResourceAttrIsSortedCSV(resourceName, "bootstrap_brokers_tls"),
-					// resource.TestCheckTypeSetElemAttrPair(resourceName, "broker_node_group_info.0.security_groups.*", "aws_security_group.example_sg", "id"),
-					// resource.TestCheckResourceAttr(resourceName, "client_authentication.#", "0"),
-					// resource.TestCheckResourceAttr(resourceName, "cluster_name", rName),
-					// resource.TestCheckResourceAttr(resourceName, "configuration_info.#", "1"),
-					// resource.TestCheckResourceAttr(resourceName, "encryption_info.#", "1"),
-					// acctest.MatchResourceAttrRegionalARN(resourceName, "encryption_info.0.encryption_at_rest_kms_key_arn", "kms", regexp.MustCompile(`key/.+`)),
-					// resource.TestCheckResourceAttr(resourceName, "encryption_info.0.encryption_in_transit.#", "1"),
-					// resource.TestCheckResourceAttr(resourceName, "encryption_info.0.encryption_in_transit.0.client_broker", "TLS"),
-					// resource.TestCheckResourceAttr(resourceName, "encryption_info.0.encryption_in_transit.0.in_cluster", "true"),
-					// resource.TestCheckResourceAttr(resourceName, "enhanced_monitoring", kafka.EnhancedMonitoringDefault),
-					resource.TestCheckResourceAttr(resourceName, "kafka_version", "2.7.1"),
+					resource.TestCheckResourceAttr(resourceName, "cluster_name", rName),
+					resource.TestCheckResourceAttr(resourceName, "cluster_type", "serverless"),
+					resource.TestCheckResourceAttr(resourceName, "serverless.0.client_authentication.0.sasl.0.iam", "true"),
+					resource.TestCheckResourceAttr(resourceName, "serverless.0.vpc_configs.0.security_group_ids.#", "1"),
+					resource.TestCheckTypeSetElemAttrPair(resourceName, "serverless.0.vpc_configs.0.security_group_ids.*", "aws_security_group.example_sg", "id"),
+					resource.TestCheckResourceAttr(resourceName, "serverless.0.vpc_configs.0.subnet_ids.#", "3"),
+					resource.TestCheckTypeSetElemAttrPair(resourceName, "serverless.0.vpc_configs.0.subnet_ids.*", "aws_subnet.example_subnet_az1", "id"),
+					resource.TestCheckTypeSetElemAttrPair(resourceName, "serverless.0.vpc_configs.0.subnet_ids.*", "aws_subnet.example_subnet_az2", "id"),
+					resource.TestCheckTypeSetElemAttrPair(resourceName, "serverless.0.vpc_configs.0.subnet_ids.*", "aws_subnet.example_subnet_az3", "id"),
 					resource.TestCheckResourceAttr(resourceName, "tags.%", "0"),
-					// resource.TestMatchResourceAttr(resourceName, "zookeeper_connect_string", clusterZookeeperConnectStringRegexp),
-					// testAccCheckResourceAttrIsSortedCSV(resourceName, "zookeeper_connect_string"),
-					// testAccCheckResourceAttrIsSortedCSV(resourceName, "zookeeper_connect_string_tls"),
 				),
 			},
 			{
