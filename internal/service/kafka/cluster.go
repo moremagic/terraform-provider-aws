@@ -98,6 +98,64 @@ func ResourceCluster() *schema.Resource {
 				Type:     schema.TypeString,
 				Computed: true,
 			},
+			"serverless": {
+				Type:             schema.TypeList,
+				Optional:         true,
+				DiffSuppressFunc: verify.SuppressMissingOptionalConfigurationBlock,
+				MaxItems:         1,
+				Elem: &schema.Resource{
+					Schema: map[string]*schema.Schema{
+						"client_authentication": {
+							Type:     schema.TypeList,
+							Optional: true,
+							MaxItems: 1,
+							Elem: &schema.Resource{
+								Schema: map[string]*schema.Schema{
+									"sasl": {
+										Type:     schema.TypeList,
+										Optional: true,
+										MaxItems: 1,
+										Elem: &schema.Resource{
+											Schema: map[string]*schema.Schema{
+												"iam": {
+													Type:     schema.TypeBool,
+													Optional: true,
+												},
+											},
+										},
+									},
+								},
+							},
+						},
+						"vpc_configs": {
+							Type:     schema.TypeList,
+							Required: true,
+							ForceNew: true,
+							MaxItems: 1,
+							Elem: &schema.Resource{
+								Schema: map[string]*schema.Schema{
+									"security_group_ids": {
+										Type:     schema.TypeSet,
+										Optional: true,
+										ForceNew: true,
+										Elem: &schema.Schema{
+											Type: schema.TypeString,
+										},
+									},
+									"subnet_ids": {
+										Type:     schema.TypeSet,
+										Required: true,
+										ForceNew: true,
+										Elem: &schema.Schema{
+											Type: schema.TypeString,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 			"provisioned": {
 				Type:             schema.TypeList,
 				Optional:         true,
@@ -472,19 +530,19 @@ func ResourceCluster() *schema.Resource {
 								},
 							},
 						},
+						"zookeeper_connect_string": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
+						"zookeeper_connect_string_tls": {
+							Type:     schema.TypeString,
+							Computed: true,
+						},
 					},
 				},
 			},
 			"tags":     tftags.TagsSchema(),
 			"tags_all": tftags.TagsSchemaComputed(),
-			"zookeeper_connect_string": {
-				Type:     schema.TypeString,
-				Computed: true,
-			},
-			"zookeeper_connect_string_tls": {
-				Type:     schema.TypeString,
-				Computed: true,
-			},
 		},
 	}
 }
@@ -503,10 +561,12 @@ func resourceClusterCreate(ctx context.Context, d *schema.ResourceData, meta int
 
 	clusterType := d.Get("cluster_type").(string)
 	if clusterType == "serverless" {
+		fmt.Printf("%v\n", "🍣　ResourceClusterCreate call [serverless]")
 		if v, ok := d.GetOk("serverless"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
 			inputV2.Serverless = expandServerlessRequest(v.([]interface{})[0].(map[string]interface{}))
 		}
 	} else if clusterType == "provisioned" {
+		fmt.Printf("%v\n", "🍣　ResourceClusterCreate call [provisioned]")
 		if v, ok := d.GetOk("provisioned"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
 			inputV2.Provisioned = expandProvisionedRequest(v.([]interface{})[0].(map[string]interface{}))
 		}
@@ -521,7 +581,6 @@ func resourceClusterCreate(ctx context.Context, d *schema.ResourceData, meta int
 	d.SetId(aws.StringValue(output.ClusterArn))
 
 	_, err = waitClusterCreated(ctx, conn, d.Id(), d.Timeout(schema.TimeoutCreate))
-
 	if err != nil {
 		return diag.Errorf("waiting for MSK Cluster (%s) create: %s", d.Id(), err)
 	}
@@ -572,19 +631,18 @@ func resourceClusterRead(ctx context.Context, d *schema.ResourceData, meta inter
 	fmt.Printf("%v\n", "🍣　ResourceClusterRead 🍣🍣　")
 
 	//TODO: provisioned の確認方法どうしよう（というか常に作っていいかも
-	if cluster.BrokerNodeGroupInfo != nil {
+	if cluster.Provisioned != nil {
 		d.Set("cluster_type", aws.String("provisioned"))
-		if err := d.Set("provisioned", []interface{}{flattenProvisionedRequest(cluster)}); err != nil {
+		if err := d.Set("provisioned", []interface{}{flattenProvisionedRequest(cluster.Provisioned)}); err != nil {
 			return diag.Errorf("setting provisioned: %s", err)
 		}
 	} else {
 		d.Set("cluster_type", aws.String("serverless"))
-		d.Set("provisioned", nil)
+
+		//TODO: ここでデータ詰める
+		d.Set("serverless", nil)
 	}
 	fmt.Printf("%v\n", "🍣　ResourceClusterRead 🍣🍣🍣　")
-
-	d.Set("zookeeper_connect_string", SortEndpointsString(aws.StringValue(cluster.ZookeeperConnectString)))
-	d.Set("zookeeper_connect_string_tls", SortEndpointsString(aws.StringValue(cluster.ZookeeperConnectStringTls)))
 
 	tags := KeyValueTags(cluster.Tags).IgnoreAWS().IgnoreConfig(ignoreTagsConfig)
 
@@ -931,8 +989,8 @@ func expandServerlessRequest(tfMap map[string]interface{}) *kafka.ServerlessRequ
 		apiObject.ClientAuthentication = expandServerlessClientAuthentication(v[0].(map[string]interface{}))
 	}
 
-	if v, ok := tfMap["vpc_config"].([]interface{}); ok && len(v) > 0 && v[0] != nil {
-		apiObject.VpcConfigs = expandVpcConfigs(v)
+	if v, ok := tfMap["vpc_configs"].([]interface{}); ok && len(v) > 0 && v[0] != nil {
+		apiObject.VpcConfigs = expandVpcConfigs(v[0].(map[string]interface{}))
 	}
 
 	return apiObject
@@ -984,34 +1042,20 @@ func expandProvisionedRequest(tfMap map[string]interface{}) *kafka.ProvisionedRe
 	return apiObject
 }
 
-func expandVpcConfigs(l []interface{}) []*kafka.VpcConfig {
-	if len(l) == 0 || l[0] == nil {
-		return nil
-	}
-	tfMap, ok := l[0].(map[string]interface{})
-	if !ok {
+func expandVpcConfigs(tfMap map[string]interface{}) []*kafka.VpcConfig {
+	if tfMap == nil {
 		return nil
 	}
 
-	vpcConfigs := make([]*kafka.VpcConfig, 0)
-	if tfSet, ok := tfMap["vpc_configs"].(*schema.Set); ok && tfSet.Len() > 0 {
-		tfList := tfSet.List()
-		for _, tfMapRaw := range tfList {
-			tfMap, ok := tfMapRaw.(map[string]interface{})
-			if !ok {
-				continue
-			}
-
-			config := &kafka.VpcConfig{}
-			if v, ok := tfMap["security_group_ids"].(*schema.Set); ok && v.Len() > 0 {
-				config.SecurityGroupIds = flex.ExpandStringSet(v)
-			}
-			if v, ok := tfMap["subnet_ids"].(*schema.Set); ok && v.Len() > 0 {
-				config.SubnetIds = flex.ExpandStringSet(v)
-			}
-			vpcConfigs = append(vpcConfigs, config)
-		}
+	config := &kafka.VpcConfig{}
+	if v, ok := tfMap["security_group_ids"].(*schema.Set); ok && v.Len() > 0 {
+		config.SecurityGroupIds = flex.ExpandStringSet(v)
 	}
+	if v, ok := tfMap["subnet_ids"].(*schema.Set); ok && v.Len() > 0 {
+		config.SubnetIds = flex.ExpandStringSet(v)
+	}
+
+	vpcConfigs := []*kafka.VpcConfig{config}
 	return vpcConfigs
 }
 
@@ -1022,7 +1066,7 @@ func expandServerlessClientAuthentication(tfMap map[string]interface{}) *kafka.S
 
 	apiObject := &kafka.ServerlessClientAuthentication{}
 
-	if v, ok := tfMap["serverless_sasl"].([]interface{}); ok && len(v) > 0 && v[0] != nil {
+	if v, ok := tfMap["sasl"].([]interface{}); ok && len(v) > 0 && v[0] != nil {
 		apiObject.Sasl = expandServerlessSASL(v[0].(map[string]interface{}))
 	}
 
@@ -1438,7 +1482,7 @@ func expandNodeExporterInfo(tfMap map[string]interface{}) *kafka.NodeExporterInf
 	return apiObject
 }
 
-func flattenProvisionedRequest(apiObject *kafka.ClusterInfo) map[string]interface{} {
+func flattenProvisionedRequest(apiObject *kafka.Provisioned) map[string]interface{} {
 	if apiObject == nil {
 		return nil
 	}
@@ -1478,6 +1522,14 @@ func flattenProvisionedRequest(apiObject *kafka.ClusterInfo) map[string]interfac
 
 	if v := apiObject.OpenMonitoring; v != nil {
 		tfMap["open_monitoring"] = []interface{}{flattenOpenMonitoring(apiObject.OpenMonitoring)}
+	}
+
+	if v := apiObject.ZookeeperConnectString; v != nil {
+		tfMap["zookeeper_connect_string"] = SortEndpointsString(aws.StringValue(apiObject.ZookeeperConnectString))
+	}
+
+	if v := apiObject.ZookeeperConnectStringTls; v != nil {
+		tfMap["zookeeper_connect_string_tls"] = SortEndpointsString(aws.StringValue(apiObject.ZookeeperConnectStringTls))
 	}
 
 	return tfMap
@@ -1813,7 +1865,7 @@ func flattenS3(apiObject *kafka.S3) map[string]interface{} {
 	return tfMap
 }
 
-func flattenOpenMonitoring(apiObject *kafka.OpenMonitoring) map[string]interface{} {
+func flattenOpenMonitoring(apiObject *kafka.OpenMonitoringInfo) map[string]interface{} {
 	if apiObject == nil {
 		return nil
 	}
@@ -1827,7 +1879,7 @@ func flattenOpenMonitoring(apiObject *kafka.OpenMonitoring) map[string]interface
 	return tfMap
 }
 
-func flattenPrometheus(apiObject *kafka.Prometheus) map[string]interface{} {
+func flattenPrometheus(apiObject *kafka.PrometheusInfo) map[string]interface{} {
 	if apiObject == nil {
 		return nil
 	}
@@ -1845,7 +1897,7 @@ func flattenPrometheus(apiObject *kafka.Prometheus) map[string]interface{} {
 	return tfMap
 }
 
-func flattenJmxExporter(apiObject *kafka.JmxExporter) map[string]interface{} {
+func flattenJmxExporter(apiObject *kafka.JmxExporterInfo) map[string]interface{} {
 	if apiObject == nil {
 		return nil
 	}
@@ -1859,7 +1911,7 @@ func flattenJmxExporter(apiObject *kafka.JmxExporter) map[string]interface{} {
 	return tfMap
 }
 
-func flattenNodeExporter(apiObject *kafka.NodeExporter) map[string]interface{} {
+func flattenNodeExporter(apiObject *kafka.NodeExporterInfo) map[string]interface{} {
 	if apiObject == nil {
 		return nil
 	}
