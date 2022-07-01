@@ -662,11 +662,11 @@ func resourceClusterRead(ctx context.Context, d *schema.ResourceData, meta inter
 func resourceClusterUpdate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	conn := meta.(*conns.AWSClient).KafkaConn
 
-	if d.HasChange("broker_node_group_info.0.instance_type") {
+	if d.HasChange("provisioned.0.broker_node_group_info.0.instance_type") {
 		input := &kafka.UpdateBrokerTypeInput{
 			ClusterArn:         aws.String(d.Id()),
 			CurrentVersion:     aws.String(d.Get("current_version").(string)),
-			TargetInstanceType: aws.String(d.Get("broker_node_group_info.0.instance_type").(string)),
+			TargetInstanceType: aws.String(d.Get("provisioned.0.broker_node_group_info.0.instance_type").(string)),
 		}
 
 		output, err := conn.UpdateBrokerTypeWithContext(ctx, input)
@@ -689,19 +689,19 @@ func resourceClusterUpdate(ctx context.Context, d *schema.ResourceData, meta int
 		}
 	}
 
-	if d.HasChanges("broker_node_group_info.0.ebs_volume_size", "broker_node_group_info.0.storage_info") {
+	if d.HasChanges("provisioned.0.broker_node_group_info.0.ebs_volume_size", "provisioned.0.broker_node_group_info.0.storage_info") {
 		input := &kafka.UpdateBrokerStorageInput{
 			ClusterArn:     aws.String(d.Id()),
 			CurrentVersion: aws.String(d.Get("current_version").(string)),
 		}
-		if d.HasChange("broker_node_group_info.0.storage_info") {
+		if d.HasChange("provisioned.0.broker_node_group_info.0.storage_info") {
 			// case 1: deprecated ebs_volume_size replaced with storage_info
 			// case 2: regular update of storage_info
 			ebsVolumeInfo := &kafka.BrokerEBSVolumeInfo{
 				KafkaBrokerNodeId: aws.String("All"),
-				VolumeSizeGB:      aws.Int64(int64(d.Get("broker_node_group_info.0.storage_info.0.ebs_storage_info.0.volume_size").(int))),
+				VolumeSizeGB:      aws.Int64(int64(d.Get("provisioned.0.broker_node_group_info.0.storage_info.0.ebs_storage_info.0.volume_size").(int))),
 			}
-			if v, ok := d.GetOk("broker_node_group_info.0.storage_info.0.ebs_storage_info.0.provisioned_throughput"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
+			if v, ok := d.GetOk("provisioned.0.broker_node_group_info.0.storage_info.0.ebs_storage_info.0.provisioned_throughput"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
 				ebsVolumeInfo.ProvisionedThroughput = expandProvisionedThroughput(v.([]interface{})[0].(map[string]interface{}))
 			}
 			input.TargetBrokerEBSVolumeInfo = []*kafka.BrokerEBSVolumeInfo{ebsVolumeInfo}
@@ -710,7 +710,7 @@ func resourceClusterUpdate(ctx context.Context, d *schema.ResourceData, meta int
 			input.TargetBrokerEBSVolumeInfo = []*kafka.BrokerEBSVolumeInfo{
 				{
 					KafkaBrokerNodeId: aws.String("All"),
-					VolumeSizeGB:      aws.Int64(int64(d.Get("broker_node_group_info.0.ebs_volume_size").(int))),
+					VolumeSizeGB:      aws.Int64(int64(d.Get("provisioned.0.broker_node_group_info.0.ebs_volume_size").(int))),
 				},
 			}
 		}
@@ -743,13 +743,13 @@ func resourceClusterUpdate(ctx context.Context, d *schema.ResourceData, meta int
 		}
 	}
 
-	if d.HasChange("broker_node_group_info.0.connectivity_info") {
+	if d.HasChange("provisioned.0.broker_node_group_info.0.connectivity_info") {
 		input := &kafka.UpdateConnectivityInput{
 			ClusterArn:     aws.String(d.Id()),
 			CurrentVersion: aws.String(d.Get("current_version").(string)),
 		}
 
-		if v, ok := d.GetOk("broker_node_group_info.0.connectivity_info"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
+		if v, ok := d.GetOk("provisioned.0.broker_node_group_info.0.connectivity_info"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
 			input.ConnectivityInfo = expandConnectivityInfo(v.([]interface{})[0].(map[string]interface{}))
 		}
 
