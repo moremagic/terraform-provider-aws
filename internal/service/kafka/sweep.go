@@ -16,7 +16,6 @@ import (
 )
 
 func init() {
-	fmt.Printf("%v\n", "✅ sweep.init() call")
 	resource.AddTestSweepers("aws_msk_cluster", &resource.Sweeper{
 		Name: "aws_msk_cluster",
 		F:    sweepClusters,
@@ -32,7 +31,6 @@ func init() {
 			"aws_msk_cluster",
 		},
 	})
-	fmt.Printf("%v\n", "✅ sweep.init() end")
 }
 
 func sweepClusters(region string) error {
