@@ -1338,6 +1338,7 @@ func testAccClusterBasePublicAccessConfig(rName string) string {
 	return acctest.ConfigCompose(acctest.ConfigAvailableAZsNoOptIn(), fmt.Sprintf(`
 resource "aws_vpc" "example_vpc" {
   cidr_block = "192.168.0.0/21"
+  enable_dns_hostnames = true
 
   tags = {
     Name = %[1]q
@@ -1673,7 +1674,6 @@ resource "aws_msk_cluster" "test" {
 		kafka_version   = "2.7.1"
 		number_of_broker_nodes = 3
 		broker_node_group_info {
-
 			client_subnets  = [aws_subnet.example_public_subnet_az1.id, aws_subnet.example_public_subnet_az2.id, aws_subnet.example_public_subnet_az3.id]
 			ebs_volume_size = 10
 			instance_type   = "kafka.m5.large"
@@ -1685,18 +1685,19 @@ resource "aws_msk_cluster" "test" {
 				}
 			}
 		}
+
+		configuration_info {
+			arn      = aws_msk_configuration.test.arn
+			revision = aws_msk_configuration.test.latest_revision
+		}
+		
+		client_authentication {
+			sasl {
+				iam = true
+			}
+		}
+		
 	}
-
-  configuration_info {
-    arn      = aws_msk_configuration.test.arn
-    revision = aws_msk_configuration.test.latest_revision
-  }
-
-  client_authentication {
-    sasl {
-      iam = true
-    }
-  }
 }
 `, rName, pa))
 }
