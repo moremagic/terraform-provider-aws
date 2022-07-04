@@ -548,7 +548,6 @@ func ResourceCluster() *schema.Resource {
 }
 
 func resourceClusterCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	fmt.Printf("%v\n", "🍣　ResourceClusterCreate call")
 	conn := meta.(*conns.AWSClient).KafkaConn
 	defaultTagsConfig := meta.(*conns.AWSClient).DefaultTagsConfig
 	tags := defaultTagsConfig.MergeTags(tftags.New(d.Get("tags").(map[string]interface{})))
@@ -561,12 +560,10 @@ func resourceClusterCreate(ctx context.Context, d *schema.ResourceData, meta int
 
 	clusterType := d.Get("cluster_type").(string)
 	if clusterType == "serverless" {
-		fmt.Printf("%v\n", "🍣　ResourceClusterCreate call [serverless]")
 		if v, ok := d.GetOk("serverless"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
 			inputV2.Serverless = expandServerlessRequest(v.([]interface{})[0].(map[string]interface{}))
 		}
 	} else if clusterType == "provisioned" {
-		fmt.Printf("%v\n", "🍣　ResourceClusterCreate call [provisioned]")
 		if v, ok := d.GetOk("provisioned"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
 			inputV2.Provisioned = expandProvisionedRequest(v.([]interface{})[0].(map[string]interface{}))
 		}
@@ -589,7 +586,6 @@ func resourceClusterCreate(ctx context.Context, d *schema.ResourceData, meta int
 }
 
 func resourceClusterRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
-	fmt.Printf("%v\n", "🍵　ResourceClusterRead call")
 	conn := meta.(*conns.AWSClient).KafkaConn
 	defaultTagsConfig := meta.(*conns.AWSClient).DefaultTagsConfig
 	ignoreTagsConfig := meta.(*conns.AWSClient).IgnoreTagsConfig
@@ -614,8 +610,6 @@ func resourceClusterRead(ctx context.Context, d *schema.ResourceData, meta inter
 		return diag.Errorf("reading MSK Cluster (%s) bootstrap brokers: %s", d.Id(), err)
 	}
 
-	fmt.Printf("%v\n", "🍵　ResourceClusterRead 🍵　")
-
 	d.Set("arn", cluster.ClusterArn)
 	d.Set("bootstrap_brokers", SortEndpointsString(aws.StringValue(output.BootstrapBrokerString)))
 	d.Set("bootstrap_brokers_public_sasl_iam", SortEndpointsString(aws.StringValue(output.BootstrapBrokerStringPublicSaslIam)))
@@ -627,8 +621,6 @@ func resourceClusterRead(ctx context.Context, d *schema.ResourceData, meta inter
 
 	d.Set("cluster_name", cluster.ClusterName)
 	d.Set("current_version", cluster.CurrentVersion)
-
-	fmt.Printf("%v\n", "🍵　ResourceClusterRead 🍵🍵　")
 
 	if cluster.Provisioned != nil {
 		d.Set("cluster_type", aws.String("provisioned"))
@@ -642,7 +634,6 @@ func resourceClusterRead(ctx context.Context, d *schema.ResourceData, meta inter
 			return diag.Errorf("setting serverless: %s", err)
 		}
 	}
-	fmt.Printf("%v\n", "🍵　ResourceClusterRead 🍵🍵🍵　")
 
 	tags := KeyValueTags(cluster.Tags).IgnoreAWS().IgnoreConfig(ignoreTagsConfig)
 
@@ -654,7 +645,6 @@ func resourceClusterRead(ctx context.Context, d *schema.ResourceData, meta inter
 	if err := d.Set("tags_all", tags.Map()); err != nil {
 		return diag.Errorf("setting tags_all: %s", err)
 	}
-	fmt.Printf("%v\n", "🍵　ResourceClusterRead 🍵🍵🍵🍵　")
 
 	return nil
 }
