@@ -763,11 +763,11 @@ func resourceClusterUpdate(ctx context.Context, d *schema.ResourceData, meta int
 		}
 	}
 
-	if d.HasChange("number_of_broker_nodes") {
+	if d.HasChange("provisioned.0.number_of_broker_nodes") {
 		input := &kafka.UpdateBrokerCountInput{
 			ClusterArn:                aws.String(d.Id()),
 			CurrentVersion:            aws.String(d.Get("current_version").(string)),
-			TargetNumberOfBrokerNodes: aws.Int64(int64(d.Get("number_of_broker_nodes").(int))),
+			TargetNumberOfBrokerNodes: aws.Int64(int64(d.Get("provisioned.0.number_of_broker_nodes").(int))),
 		}
 
 		output, err := conn.UpdateBrokerCountWithContext(ctx, input)
@@ -790,18 +790,18 @@ func resourceClusterUpdate(ctx context.Context, d *schema.ResourceData, meta int
 		}
 	}
 
-	if d.HasChanges("enhanced_monitoring", "logging_info", "open_monitoring") {
+	if d.HasChanges("provisioned.0.enhanced_monitoring", "provisioned.0.logging_info", "provisioned.0.open_monitoring") {
 		input := &kafka.UpdateMonitoringInput{
 			ClusterArn:         aws.String(d.Id()),
 			CurrentVersion:     aws.String(d.Get("current_version").(string)),
-			EnhancedMonitoring: aws.String(d.Get("enhanced_monitoring").(string)),
+			EnhancedMonitoring: aws.String(d.Get("provisioned.0.enhanced_monitoring").(string)),
 		}
 
-		if v, ok := d.GetOk("logging_info"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
+		if v, ok := d.GetOk("provisioned.0.logging_info"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
 			input.LoggingInfo = expandLoggingInfo(v.([]interface{})[0].(map[string]interface{}))
 		}
 
-		if v, ok := d.GetOk("open_monitoring"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
+		if v, ok := d.GetOk("provisioned.0.open_monitoring"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
 			input.OpenMonitoring = expandOpenMonitoringInfo(v.([]interface{})[0].(map[string]interface{}))
 		}
 
@@ -825,13 +825,13 @@ func resourceClusterUpdate(ctx context.Context, d *schema.ResourceData, meta int
 		}
 	}
 
-	if d.HasChange("configuration_info") && !d.HasChange("kafka_version") {
+	if d.HasChange("provisioned.0.configuration_info") && !d.HasChange("provisioned.0.kafka_version") {
 		input := &kafka.UpdateClusterConfigurationInput{
 			ClusterArn:     aws.String(d.Id()),
 			CurrentVersion: aws.String(d.Get("current_version").(string)),
 		}
 
-		if v, ok := d.GetOk("configuration_info"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
+		if v, ok := d.GetOk("provisioned.0.configuration_info"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
 			input.ConfigurationInfo = expandConfigurationInfo(v.([]interface{})[0].(map[string]interface{}))
 		}
 
@@ -855,15 +855,15 @@ func resourceClusterUpdate(ctx context.Context, d *schema.ResourceData, meta int
 		}
 	}
 
-	if d.HasChange("kafka_version") {
+	if d.HasChange("provisioned.0.kafka_version") {
 		input := &kafka.UpdateClusterKafkaVersionInput{
 			ClusterArn:         aws.String(d.Id()),
 			CurrentVersion:     aws.String(d.Get("current_version").(string)),
-			TargetKafkaVersion: aws.String(d.Get("kafka_version").(string)),
+			TargetKafkaVersion: aws.String(d.Get("provisioned.0.kafka_version").(string)),
 		}
 
-		if d.HasChange("configuration_info") {
-			if v, ok := d.GetOk("configuration_info"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
+		if d.HasChange("provisioned.0.configuration_info") {
+			if v, ok := d.GetOk("provisioned.0.configuration_info"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
 				input.ConfigurationInfo = expandConfigurationInfo(v.([]interface{})[0].(map[string]interface{}))
 			}
 		}
@@ -888,20 +888,20 @@ func resourceClusterUpdate(ctx context.Context, d *schema.ResourceData, meta int
 		}
 	}
 
-	if d.HasChanges("encryption_info", "client_authentication") {
+	if d.HasChanges("provisioned.0.encryption_info", "provisioned.0.client_authentication") {
 		input := &kafka.UpdateSecurityInput{
 			ClusterArn:     aws.String(d.Id()),
 			CurrentVersion: aws.String(d.Get("current_version").(string)),
 		}
 
-		if d.HasChange("client_authentication") {
-			if v, ok := d.GetOk("client_authentication"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
+		if d.HasChange("provisioned.0.client_authentication") {
+			if v, ok := d.GetOk("provisioned.0.client_authentication"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
 				input.ClientAuthentication = expandClientAuthentication(v.([]interface{})[0].(map[string]interface{}))
 			}
 		}
 
-		if d.HasChange("encryption_info") {
-			if v, ok := d.GetOk("encryption_info"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
+		if d.HasChange("provisioned.0.encryption_info") {
+			if v, ok := d.GetOk("provisioned.0.encryption_info"); ok && len(v.([]interface{})) > 0 && v.([]interface{})[0] != nil {
 				input.EncryptionInfo = expandEncryptionInfo(v.([]interface{})[0].(map[string]interface{}))
 				if input.EncryptionInfo != nil {
 					input.EncryptionInfo.EncryptionAtRest = nil // "Updating encryption-at-rest settings on your cluster is not currently supported."
